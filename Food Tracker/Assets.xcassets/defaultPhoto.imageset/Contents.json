@@ -2,15 +2,17 @@
   "images" : [
     {
       "idiom" : "universal",
+      "filename" : "defaultPhoto-1.png",
       "scale" : "1x"
     },
     {
       "idiom" : "universal",
-      "filename" : "northernLights.jpg",
+      "filename" : "defaultPhoto.png",
       "scale" : "2x"
     },
     {
       "idiom" : "universal",
+      "filename" : "defaultPhoto-2.png",
       "scale" : "3x"
     }
   ],
