@@ -20,8 +20,13 @@ class MealTableViewController: UITableViewController {
         //use edit button provided by table view controller
         navigationItem.leftBarButtonItem = editButtonItem
 
-        //load sample meals
-        loadSampleMeals()
+        let savedMeals = loadMeals()
+        
+        if savedMeals?.count ?? 0 > 0 {
+            meals = savedMeals ?? [Meal]()
+        } else {
+            loadSampleMeals()
+        }
     }
 
     // MARK: - Table view data source
@@ -63,6 +68,7 @@ class MealTableViewController: UITableViewController {
         if editingStyle == .delete {
             // Delete the row from the data source
             meals.remove(at: indexPath.row)
+            saveMeals()
             tableView.deleteRows(at: [indexPath], with: .fade)
         } else if editingStyle == .insert {
             // Create a new instance of the appropriate class, insert it into the array, and add a new row to the table view
@@ -93,9 +99,9 @@ class MealTableViewController: UITableViewController {
         
         switch(segue.identifier ?? ""){
             
-        case "Add Item":
+        case "AddItem":
             os_log("Addin a new meal.", log: OSLog.default, type: .debug)
-        case "Show Detail":
+        case "ShowDetail":
             guard let mealDetailViewController = segue.destination as? MealViewController else{
                 fatalError("Unexpected destination: \(segue.destination)")
             }
@@ -114,6 +120,24 @@ class MealTableViewController: UITableViewController {
         }
     }
 
+    //MARK: Actions
+    @IBAction func unwindToMealList(sender: UIStoryboardSegue){
+        if let sourceViewController = sender.source as? MealViewController, let meal = sourceViewController.meal{
+            if let selectedIndexPath = tableView.indexPathForSelectedRow {
+                //update exisiting meal
+                meals[selectedIndexPath.row] = meal
+                tableView.reloadRows(at: [selectedIndexPath], with: .none)
+            }
+            else{
+                //add new meal
+                let newIndexPath = IndexPath(row: meals.count, section: 0)
+                
+                meals.append(meal)
+                tableView.insertRows(at: [newIndexPath], with: .automatic)
+            }
+            saveMeals()
+        }
+    }
     
     //MARK: Private Methods
     private func loadSampleMeals() {
@@ -133,22 +157,36 @@ class MealTableViewController: UITableViewController {
         
         meals += [meal1, meal2, meal3]
     }
-    
-    //MARK: Actions
-    @IBAction func unwindToMealList(sender: UIStoryboardSegue){
-        if let sourceViewController = sender.source as? MealViewController, let meal = sourceViewController.meal{
-            if let selectedIndexPath = tableView.indexPathForSelectedRow {
-                //update exisiting meal
-                meals[selectedIndexPath.row] = meal
-                tableView.reloadRows(at: [selectedIndexPath], with: .none)
-            }
-            else{
-                //add new meal
-                let newIndexPath = IndexPath(row: meals.count, section: 0)
+    private func saveMeals() {
+        let fullPath = getDocumentsDirectory().appendingPathComponent("meals")
+        
+        do {
+            let data = try NSKeyedArchiver.archivedData(withRootObject: meals, requiringSecureCoding: false)
+            try data.write(to: fullPath)
+            os_log("Meals successfully saved.", log: OSLog.default, type: .debug)
+        } catch {
+            os_log("Failed to save meals...", log: OSLog.default, type: .error)
+        }
+    }
+    func getDocumentsDirectory() -> URL {
+        let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+        return paths[0]
+    }
+    private func loadMeals() -> [Meal]? {
+        let fullPath = getDocumentsDirectory().appendingPathComponent("meals")
+        if let nsData = NSData(contentsOf: fullPath) {
+            do {
                 
-                meals.append(meal)
-                tableView.insertRows(at: [newIndexPath], with: .automatic)
+                let data = Data(referencing:nsData)
+                
+                if let loadedMeals = try NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(data) as? Array<Meal> {
+                    return loadedMeals
+                }
+            } catch {
+                print("Couldn't read file.")
+                return nil
             }
         }
+        return nil
     }
 }
